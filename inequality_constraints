@@ -35,24 +35,23 @@ end
 min_dist = min(distl,distr);
 
 %u_ref
-
-Aineq = [eye(Ndec) ; -eye(Ndec)] ; 
-bineq = [min_dist*ones(66, 1) ; [0.5-cline(1:20)] ; min_dist*ones(66, 1) ; [0.5+cline(1:20)]]; 
+%F_ref
 
 %dummy variables
 k = 1;
 khorizon = 50;
 
-[Aineq bineq] = ineq_cons(k, u_ref, khorizon, n_states, n_inputs)
+[Aineq bineq] = ineq_cons(k, u_ref, F_ref, khorizon, n_states, n_inputs)
 
-function [Aineq, bineq] = ineq_cons(k, u_ref, khorizon, n_states, n_inputs)
+function [Aineq, bineq] = ineq_cons(k, u_ref, F_ref khorizon, n_states, n_inputs)
     
     zsize = (khorizon+1)*n_states+khorizon*n_inputs ; 
     xsize = (khorizon+1)*n_states ; 
+    
+    l = (size-xsize)/n_inputs;
 
     Aineq = [eye(zsize); -eye(zsize)]; 
-    bineq = [min_dist*ones(xsize, 1); [0.5-u_ref(k:k-1+zsize-xsize)]; min_dist*ones(xsize, 1); [0.5+u_ref(k:k-1+zsize-xsize)]];  
+    bineq = [min_dist*ones(xsize, 1); [0.5-u_ref(k:k-1+l); 10000-F_ref(k:k-1+l)]; min_dist*ones(xsize, 1); [0.5+u_ref(k:k-1+l); 5000+F_ref(k:k-1+l)]]; 
+
 end
-
-
 
