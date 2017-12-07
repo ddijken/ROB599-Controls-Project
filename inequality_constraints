@@ -1,0 +1,58 @@
+clear
+close
+clc
+
+load('TestTrack.mat')
+
+bl = TestTrack.bl;
+br = TestTrack.br;
+cline = TestTrack.cline;
+theta = TestTrack.theta;
+
+
+hold on
+plot(bl(1,:),bl(2,:),'blue')
+plot(br(1,:),br(2,:),'blue')
+plot(cline(1,:),cline(2,:),'--')
+legend('bl','br','cline')
+
+
+%% Inequality constraints
+%11 timesteps for 6 states, 10 timesteps for 2 inputs
+dt = 0.01;
+t = 0:dt:10;
+
+n_states = 6;
+n_inputs = 2;
+
+Ndec = 11*n_states + 10*n_inputs;
+
+for i = 1:length(theta)
+    distl(i) = sqrt((bl(1,i)-cline(1,i))^2 + (bl(2,i)-cline(2,i))^2);
+    distr(i) = sqrt((br(1,i)-cline(1,i))^2 + (br(2,i)-cline(2,i))^2);
+end
+
+min_dist = min(distl,distr);
+
+%u_ref
+
+Aineq = [eye(Ndec) ; -eye(Ndec)] ; 
+bineq = [min_dist*ones(66, 1) ; [0.5-cline(1:20)] ; min_dist*ones(66, 1) ; [0.5+cline(1:20)]]; 
+
+%dummy variables
+k = 1;
+khorizon = 50;
+
+[Aineq bineq] = ineq_cons(k, u_ref, khorizon, n_states, n_inputs)
+
+function [Aineq, bineq] = ineq_cons(k, u_ref, khorizon, n_states, n_inputs)
+    
+    zsize = (khorizon+1)*n_states+khorizon*n_inputs ; 
+    xsize = (khorizon+1)*n_states ; 
+
+    Aineq = [eye(zsize); -eye(zsize)]; 
+    bineq = [min_dist*ones(xsize, 1); [0.5-u_ref(k:k-1+zsize-xsize)]; min_dist*ones(xsize, 1); [0.5+u_ref(k:k-1+zsize-xsize)]];  
+end
+
+
+
