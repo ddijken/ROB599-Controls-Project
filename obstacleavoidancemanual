@@ -1,0 +1,126 @@
+clear;
+close;
+clc;
+
+load('TestTrack.mat')
+
+bl_x = TestTrack.bl(1,:);
+bl_y = TestTrack.bl(2,:);
+
+br_x = TestTrack.br(1,:);
+br_y = TestTrack.br(2,:);
+
+cline_x = TestTrack.cline(1,:);
+cline_y = TestTrack.cline(2,:);
+
+theta = TestTrack.theta(1,:);
+
+NObs = 5;
+Xobs = generateRandomObstacles(NObs,TestTrack);
+
+U{1} = [-0.004*ones(500,1) 5000*ones(500,1)];
+U{2} = [-0.5*ones(250,1) -7000*ones(250,1);];
+U{3} = [-0.5*ones(400,1) 3450*ones(400,1);];
+U{4} = [-0.05*ones(170,1) 5000*ones(170,1)];
+U{5} = [0.017*ones(350,1) 1000*ones(350,1)];
+U{6} = [0.5*ones(300,1) -7100*ones(300,1)];
+U{7} = [-0.008*ones(300,1) 2000*ones(300,1)];
+U{8} = [-0.5*ones(425,1) 200*ones(425,1)];
+U{9} = [0.5*ones(400,1) 300*ones(400,1)];
+U{10} = [0.01*ones(200,1) 5000*ones(200,1)];
+U{11} = [-0.5*ones(330,1) 1000*ones(330,1)];
+U{12} = [-0.5*ones(400,1) -400*ones(400,1)];
+U{13} = [-0.5*ones(400,1) 1000*ones(400,1)];
+U{14} = [-0.2*ones(110,1) 5000*ones(110,1)];
+U{15} = [0.5*ones(120,1) -4800*ones(120,1)];
+U{16} = [0.5*ones(500,1) 1000*ones(500,1)];
+U{17} = [0.02*ones(250,1) 5000*ones(250,1)];
+U{18} = [-0.5*ones(250,1) -5700*ones(250,1)];
+U{19} = [-0.5*ones(700,1) 1800*ones(700,1)];
+U{20} = [0.5*ones(240,1) -3790*ones(240,1)];
+U{21} = [0.5*ones(50,1) 5000*ones(50,1)];
+U{22} = [0.07*ones(103,1) 5000*ones(103,1)];
+U{23} = [-0.0005*ones(430,1) 5000*ones(430,1)];
+U{24} = [0.5*ones(280,1) -9000*ones(280,1)];
+U{25} = [0.012*ones(500,1) 5000*ones(500,1)];
+U{26} =[-0.04*ones(40,1) 5000*ones(40,1)];
+U{27} =[0*ones(460,1) 5000*ones(460,1)];
+
+
+%U = [U1;U2;U3;U4;U5;U6;U7;U8;U9;U10;U11;U12;U13;U14;U15;U16;U17;U18;U19;U20;U21;U22;U23;U24;U25;U26;U27];
+
+%%
+Utot = [];
+
+for i = 1:27
+    
+    Obstacleavoidance = 1;
+    loopnr = 0;
+    pointstru = [];
+    
+    while Obstacleavoidance
+        if loopnr ~= 0
+            Unew = U{i};
+            Unew1 = [U{i}(1,1)*ones(max(1,j-20),1) U{i}(1,2)*ones(max(1,j-20),1)];
+            Unew2 = [Unew(1,1)*(1+loopnr/100)*ones(20,1) Unew(1,2)*ones(20,1)];
+            Unew3 = [U{i}(1,1)*ones(max(1,pointstru(1)),1) U{i}(1,2)*ones(max(1,pointstru(1)),1)];
+            Unew4 = [Unew(1,1)*(1-loopnr/100)*ones(20,1) Unew(1,2)*ones(20,1)];
+            remainder = length(U{i}) - length(Unew1) - length(Unew2) - length(Unew3) - length(Unew4);
+            Unew5 = [U{i}(1,1)*ones(max(1,remainder),1) U{i}(1,2)*ones(max(1,remainder),1)];
+            U{i} = [Unew1; Unew2; Unew3; Unew4; Unew5];
+            U{i} = U{i}(length(Unew),:);
+        end
+        
+        Utemp = [Utot; U{i}];
+        Z = forwardIntegrateControlInput(Utemp);
+
+        x = Z(:,1);
+        y = Z(:,3);
+
+        counter = 0;
+        pointstru = [];
+        
+        for j = 1:length(U{i})
+            p = j + length(Z)-length(U{i});
+            for jj = 1:NObs
+                check = inpolygon(x(p),y(p),Xobs{jj}(:,1),Xobs{jj}(:,2));
+                if check == 1
+                    pointstru = [pointstru j];
+                end
+                counter = counter + check;
+            end
+            pointstru = unique(pointstru);
+        end
+
+        if counter == 0
+            Obstacleavoidance = 0;
+        else 
+            Obstacleavoidance = 1;
+        end
+        loopnr = loopnr + 1;
+    end
+    
+    Utot = [Utot; U{i}]
+    i
+end
+
+%%
+
+Z = forwardIntegrateControlInput(Utot); 
+
+%% plot
+plot(bl_x,bl_y,br_x,br_y,cline_x,cline_y,'--')
+hold on
+for i = 1:NObs
+    plot([Xobs{i}(:,1);Xobs{i}(1,1)],[Xobs{i}(:,2);Xobs{i}(1,2)])
+end
+h = animatedline;
+x = Z(:,1);
+y = Z(:,3);
+
+
+for k = 1:length(x)
+   addpoints(h,x(k),y(k));
+   drawnow limitrate
+   pause(0.001)
+end
