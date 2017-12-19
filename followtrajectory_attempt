@@ -1,0 +1,68 @@
+%PIDcontrol
+tic
+load('Linearized_expressions');
+load('TestTrack');
+bl = TestTrack.bl;
+br = TestTrack.br;
+cl = TestTrack.cline;
+theta = TestTrack.theta;
+
+Nobs = randi(6) + 9;
+
+[cl_new Obs] = ccpl(TestTrack,Nobs);
+ 
+
+for p = 1:length(cl_new)-1
+    theta_new(p) = atan2(cl_new(2,p+1)-cl_new(2,p),cl_new(1,p+1)-cl_new(1,p));
+end
+
+theta_new(length(cl_new)) = theta_new(end);
+
+indx = 1;
+finalarray = [];
+array = [287,5,-176,0,2,0];
+distancefromline = sqrt((cl_new(1,1)-array(1))^2 + (cl_new(2,1)-array(3))^2);
+anglecar = theta_new(1) - array(5);
+
+for i = 1:2000
+    x = array(end,:);
+    u = [anglecar*ones(2,1) 250*ones(2,1)];
+    
+    array = forwardIntegrateControlInput(u,x);
+    
+    for j = 1:length(cl_new)
+        dist(j) = sqrt((cl_new(1,j)-array(end,1))^2 + (cl_new(2,j)-array(end,3))^2);
+    end
+    
+    [val indx] = min(dist);
+    
+    distancefromline = [distancefromline,val];
+        
+    if distancefromline(i+1) > distancefromline(i)
+        if array(end,1) < cl_new(1,indx)
+            anglecar = theta_new(indx) - array(end,5)*(distancefromline(i+1)/distancefromline(i)); 
+        else
+            anglecar = theta_new(indx) - array(end,5)*(distancefromline(i)/distancefromline(i+1));   
+        end
+    else
+        anglecar = theta_new(indx) - array(end,5);
+    end
+    
+    finalarray = [finalarray; array];
+
+end
+
+toc
+%% plot
+plot(bl(1,:),bl(2,:))
+hold on
+plot(br(1,:),br(2,:))
+hold on
+plot(cl_new(1,:),cl_new(2,:));
+for i = 1:numel(Obs)
+    X = Obs{i};
+    plot(X(:,1),X(:,2));
+end
+plot(cl(1,:),cl(2,:),'--')
+plot(finalarray(:,1),finalarray(:,3),'-.')
+
